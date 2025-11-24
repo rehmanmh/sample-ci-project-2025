@@ -6,6 +6,11 @@ pipeline {
         maven 'M3'
     }
 
+    environment {
+        JAVA_HOME = tool 'JDK17'
+        PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
+    }
+
     stages {
 
         stage('Checkout') {
@@ -16,6 +21,8 @@ pipeline {
 
         stage('Build') {
             steps {
+                sh 'mvn -v'
+                sh 'java -version'
                 sh 'mvn clean package'
             }
         }
@@ -32,7 +39,7 @@ pipeline {
             echo "Build completed successfully! 🚀"
         }
         failure {
-            echo "Build failed ❌ Check console output."
+            echo "Build failed ❌ Check logs."
         }
     }
 }
