@@ -43,3 +43,18 @@ pipeline {
         }
     }
 }
+
+stage('SonarQube Analysis') {
+    steps {
+        withSonarQubeEnv('prod-sonar') {
+            sh """
+              mvn sonar:sonar \
+                -Dsonar.projectKey=sample-ci-project-2025 \
+                -Dsonar.projectName=sample-ci-project-2025 \
+                -Dsonar.host.url=$SONAR_HOST_URL \
+                -Dsonar.login=$SONAR_AUTH_TOKEN
+            """
+        }
+    }
+}
+
