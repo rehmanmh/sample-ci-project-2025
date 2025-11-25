@@ -2,7 +2,7 @@
 
 WORKDIR /app
 
-COPY target/sample-ci-project-1.0.0.jar app.jar
+COPY app.jar app.jar
 
 EXPOSE 8080
 
