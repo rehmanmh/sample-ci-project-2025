@@ -9,6 +9,7 @@ pipeline {
     environment {
         JAVA_HOME = tool 'JDK17'
         PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
+        DOCKER_IMAGE = "sample-ci-project"
     }
 
     stages {
@@ -21,8 +22,6 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn -v'
-                sh 'java -version'
                 sh 'mvn clean package'
             }
         }
@@ -52,14 +51,24 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    def tag = "${env.BUILD_NUMBER}"
+                    sh "docker build -t ${DOCKER_IMAGE}:latest ."
+                    sh "docker tag ${DOCKER_IMAGE}:latest ${DOCKER_IMAGE}:${tag}"
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo "Build + Sonar scan completed successfully! 🚀"
+            echo "Pipeline completed successfully — build, scan, and Docker done 🚀"
         }
         failure {
-            echo "Pipeline failed ❌ Check logs."
+            echo "Pipeline failed — check logs ❌"
         }
     }
 }
