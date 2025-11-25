@@ -10,6 +10,7 @@ pipeline {
         JAVA_HOME = tool 'JDK17'
         PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
         DOCKER_IMAGE = "sample-ci-project"
+        DOCKER_HOST_IP = "13.48.196.47"
     }
 
     stages {
@@ -20,13 +21,13 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build JAR') {
             steps {
                 sh 'mvn clean package'
             }
         }
 
-        stage('Test') {
+        stage('Run Tests') {
             steps {
                 sh 'mvn test'
             }
@@ -44,12 +45,27 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Copy Artifact to Docker Host') {
             steps {
-                script {
-                    def tag = "${env.BUILD_NUMBER}"
-                    sh "docker build -t ${DOCKER_IMAGE}:latest ."
-                    sh "docker tag ${DOCKER_IMAGE}:latest ${DOCKER_IMAGE}:${tag}"
+                sshagent(credentials: ['docker-host']) {
+                    sh """
+                        scp -o StrictHostKeyChecking=no target/*.jar ec2-user@${DOCKER_HOST_IP}:/home/ec2-user/ci-build/app.jar
+                        scp -o StrictHostKeyChecking=no Dockerfile ec2-user@${DOCKER_HOST_IP}:/home/ec2-user/ci-build/Dockerfile
+                    """
+                }
+            }
+        }
+
+        stage('Build Docker Image on Remote Host') {
+            steps {
+                sshagent(credentials: ['docker-host']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ec2-user@${DOCKER_HOST_IP} '
+                            cd /home/ec2-user/ci-build &&
+                            docker build -t ${DOCKER_IMAGE}:latest . &&
+                            echo "Docker image built successfully 🚀"
+                        '
+                    """
                 }
             }
         }
@@ -57,10 +73,10 @@ pipeline {
 
     post {
         success {
-            echo "Build + Sonar + Docker completed successfully! 🚀"
+            echo "✔ Full CI + Docker automation completed! 🚀"
         }
         failure {
-            echo "Pipeline failed ❌ Check logs."
+            echo "❌ Pipeline failed — check logs."
         }
     }
 }
