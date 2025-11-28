@@ -9,8 +9,9 @@ pipeline {
     environment {
         JAVA_HOME = tool 'JDK17'
         PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
-        DOCKER_IMAGE = "sample-ci-project"
-        DOCKER_HOST_IP = "13.48.196.47"
+        DOCKER_HOST_IP = "16.16.122.248"           // your Docker Host
+        NEXUS_IP = "16.16.70.183:5000"          // Nexus Docker Registry
+        DOCKER_IMAGE = "sample-ci-project"       // Image name
     }
 
     stages {
@@ -21,13 +22,13 @@ pipeline {
             }
         }
 
-        stage('Build JAR') {
+        stage('Build') {
             steps {
                 sh 'mvn clean package'
             }
         }
 
-        stage('Run Tests') {
+        stage('Test') {
             steps {
                 sh 'mvn test'
             }
@@ -37,7 +38,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('prod-sonar') {
                     sh """
-                      mvn sonar:sonar \
+                        mvn sonar:sonar \
                         -Dsonar.projectKey=sample-ci-project-2025 \
                         -Dsonar.projectName=sample-ci-project-2025
                     """
@@ -47,33 +48,36 @@ pipeline {
 
         stage('Copy Artifact to Docker Host') {
             steps {
-                sshagent(credentials: ['docker-host']) {
+                sshagent (credentials: ['docker-ec2']) {
                     sh """
-                        scp -o StrictHostKeyChecking=no target/*.jar ec2-user@${DOCKER_HOST_IP}:/home/ec2-user/ci-build/app.jar
+                        scp -o StrictHostKeyChecking=no target/sample-ci-project-1.0.0.jar ec2-user@${DOCKER_HOST_IP}:/home/ec2-user/ci-build/app.jar
                         scp -o StrictHostKeyChecking=no Dockerfile ec2-user@${DOCKER_HOST_IP}:/home/ec2-user/ci-build/Dockerfile
                     """
                 }
             }
         }
 
-        stage('Build Docker Image on Remote Host') {
+        stage('Build & Push Docker Image from Docker Host') {
             steps {
-                sshagent(credentials: ['docker-host']) {
+                sshagent (credentials: ['docker-ec2']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ec2-user@${DOCKER_HOST_IP} '
                             cd /home/ec2-user/ci-build &&
                             docker build -t ${DOCKER_IMAGE}:latest . &&
-                            echo "Docker image built successfully 🚀"
+                            docker tag ${DOCKER_IMAGE}:latest ${NEXUS_IP}/${DOCKER_IMAGE}:latest &&
+                            docker push ${NEXUS_IP}/${DOCKER_IMAGE}:latest &&
+                            echo "🚀 Docker image pushed to Nexus: ${NEXUS_IP}/${DOCKER_IMAGE}:latest"
                         '
                     """
                 }
             }
         }
+
     }
 
     post {
         success {
-            echo "✔ Full CI + Docker automation completed! 🚀"
+            echo "✔ Full CI → Docker Build → Nexus Push Completed Successfully!"
         }
         failure {
             echo "❌ Pipeline failed — check logs."
