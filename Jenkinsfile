@@ -48,7 +48,7 @@ pipeline {
 
         stage('Copy Artifact to Docker Host') {
             steps {
-                sshagent (credentials: ['docker-ec2']) {
+                sshagent (credentials: ['docker-host']) {
                     sh """
                         scp -o StrictHostKeyChecking=no target/sample-ci-project-1.0.0.jar ec2-user@${DOCKER_HOST_IP}:/home/ec2-user/ci-build/app.jar
                         scp -o StrictHostKeyChecking=no Dockerfile ec2-user@${DOCKER_HOST_IP}:/home/ec2-user/ci-build/Dockerfile
