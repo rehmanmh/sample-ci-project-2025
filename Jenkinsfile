@@ -59,7 +59,7 @@ pipeline {
 
         stage('Build & Push Docker Image from Docker Host') {
             steps {
-                sshagent (credentials: ['docker-ec2']) {
+                sshagent (credentials: ['docker-host']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ec2-user@${DOCKER_HOST_IP} '
                             cd /home/ec2-user/ci-build &&
